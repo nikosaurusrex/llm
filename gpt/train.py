@@ -14,12 +14,6 @@ if len(sys.argv) <= 1:
 
 mode = sys.argv[1]
 
-base_dir = os.path.dirname(__file__)
-data_dir = os.path.join(base_dir, '../data')
-out_dir = os.path.join(base_dir, '../out')
-
-os.makedirs(out_dir, exist_ok=True)
-
 train_file = os.path.join(data_dir, 'train.bin')
 val_file = os.path.join(data_dir, 'val.bin')
 save_file = os.path.join(out_dir, 'gpt_ckpt.pt')
@@ -36,18 +30,15 @@ def get_batch(of='train'):
 
     return x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
 
-optim_params = {'params': {}},
-optimizer = torch.optim.AdamW(optim_params, lr=learning_rate, betas=(beta1,beta2), weight_decay=weight_decay)
+gpt = GPT()
+optimizer = torch.optim.AdamW(gpt.get_parameters(), lr=learning_rate, betas=(beta1,beta2), weight_decay=weight_decay)
+
 if mode == 'new':
     print('Creating new model')
-
-    gpt = GPT()
 elif mode == 'resume':
     print(f'Resuming model {save_file}')
 
     checkpoint = torch.load(save_file, map_location=device)
-
-    gpt = GPT()
 
     gpt.load_state_dict(checkpoint['model'])
     optimizer.load_state_dict(checkpoint['optimizer'])
@@ -109,10 +100,12 @@ def train():
 
         optimizer.zero_grad(set_to_none=True)
 
-        if iter % log_interval:
+        if iter % log_interval == 0:
             cur_time = time.time()
             delta_time = cur_time - start_time
             print(f'iter {iter}, loss {loss.item():.2f}, time {delta_time*1000:.2f}ms')
+
+            start_time = cur_time
 
         if iter % eval_interval == 0:
             train_loss, val_loss = estimate_loss()
