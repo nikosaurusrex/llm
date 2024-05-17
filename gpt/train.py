@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import math
 import numpy as np
 import torch
 import wandb
@@ -31,7 +32,6 @@ def get_batch(of='train'):
     return x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
 
 gpt = GPT()
-optimizer = torch.optim.AdamW(gpt.get_parameters(), lr=learning_rate, betas=(beta1,beta2), weight_decay=weight_decay)
 
 if mode == 'new':
     print('Creating new model')
@@ -41,7 +41,6 @@ elif mode == 'resume':
     checkpoint = torch.load(save_file, map_location=device)
 
     gpt.load_state_dict(checkpoint['model'])
-    optimizer.load_state_dict(checkpoint['optimizer'])
 
     unpack_config(checkpoint['config'])
 else:
@@ -49,6 +48,10 @@ else:
     sys.exit(1)
 
 gpt.to(device)
+
+optimizer = torch.optim.AdamW(gpt.get_parameters(), lr=learning_rate, betas=(beta1,beta2), weight_decay=weight_decay)
+if mode == 'resume':
+    optimizer.load_state_dict(checkpoint['optimizer'])
 
 if compile:
     print("Compiling the model")
@@ -81,13 +84,35 @@ def estimate_loss():
     gpt.train()
     return out['train'], out['val']
 
+
+decay_lr = True # whether to decay the learning rate
+warmup_iters = 1000 # how many steps to warm up for
+lr_decay_iters = 600000 # should be ~= max_iters per Chinchilla
+min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
+# learning rate decay scheduler (cosine with warmup)
+def get_lr(it):
+    # 1) linear warmup for warmup_iters steps
+    if it < warmup_iters:
+        return learning_rate * it / warmup_iters
+    # 2) if it > lr_decay_iters, return min learning rate
+    if it > lr_decay_iters:
+        return min_lr
+    # 3) in between, use cosine decay down to min learning rate
+    decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
+    assert 0 <= decay_ratio <= 1
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
+    return min_lr + coeff * (learning_rate - min_lr)
+
 def train():
     best_loss = 15981239
 
-    lr = learning_rate
     start_time = time.time()
 
     for iter in range(training_iter):
+        lr = get_lr(iter)
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+
         x, y = get_batch('train')
 
         with torch_ctx:
@@ -119,6 +144,7 @@ def train():
 
             if val_loss < best_loss:
                 save_checkpoint()
+                best_loss = val_loss
     
 if wandb_log:
     logger = wandb.init(project="llm", name="gpt", config=pack_config())

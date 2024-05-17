@@ -4,11 +4,11 @@ import torch
 import torch.amp
 
 n_vocab = 50304 # rounded up from gpt2
-n_layer = 6
+n_layer = 12
 n_head = 12
-n_embd = 128
-ctx_len = 64
-batch_size = 32
+n_embd = 96
+ctx_len = 512
+batch_size = 16
 
 dropout = 0.0 
 
@@ -18,7 +18,7 @@ beta1 = 0.9
 beta2 = 0.95
 
 training_iter = 10000
-eval_interval = 1000 # how many steps until I run the eval again
+eval_interval = 500 # how many steps until I run the eval again
 eval_iters = 100 # how many losses are calculated when evaluating
 log_interval = 100 # how many steps between each log message
 

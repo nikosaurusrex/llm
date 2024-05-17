@@ -100,7 +100,7 @@ class GPT(nn.Module):
 
         return logits, loss
 
-    def generate(self, x, max_new_tokens, temperature, top_k):
+    async def generate(self, x, max_new_tokens, temperature, top_k):
         for _ in range(max_new_tokens):
             idx_cond = x if x.size(1) <= ctx_len else x[:, -ctx_len:]
             logits, _ = self(idx_cond, None)
@@ -115,7 +115,7 @@ class GPT(nn.Module):
 
             x = torch.cat((x, idx_next), dim=1)
 
-        return x
+            yield idx_next
 
     def get_parameters(self):
         param_dict = {pn: p for pn, p in self.named_parameters()}

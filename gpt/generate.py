@@ -1,4 +1,5 @@
 import sys
+import asyncio
 
 import torch
 import tiktoken
@@ -30,11 +31,14 @@ start = input("Prompt: ")
 ids = enc.encode(start)
 x = torch.tensor(ids, device=device)[None, ...]
 
-max_tokens = 20
+max_tokens = 2000
 temperature = 0.9
 top_k = 200 # retain only teh top_k most likely tokens, other to 0 probability
 
-with torch.no_grad():
-    with torch_ctx:
-        y = gpt.generate(x, max_tokens, temperature, top_k)
-        print(enc.decode(y[0].tolist()))
+async def generate():
+    with torch.no_grad():
+        with torch_ctx:
+            async for token in gpt.generate(x, max_tokens, temperature, top_k):
+                print(enc.decode(token[0].tolist()), end="")
+
+asyncio.run(generate())
