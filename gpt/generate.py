@@ -31,9 +31,9 @@ start = input("Prompt: ")
 ids = enc.encode(start)
 x = torch.tensor(ids, device=device)[None, ...]
 
-max_tokens = 2000
-temperature = 0.9
-top_k = 200 # retain only teh top_k most likely tokens, other to 0 probability
+max_tokens = 1000
+temperature = 1.0
+top_k = 200 # retain only the top_k most likely tokens, other to 0 probability
 
 async def generate():
     with torch.no_grad():

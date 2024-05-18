@@ -1,3 +1,5 @@
+import math
+
 import torch
 
 import torch
@@ -36,13 +38,13 @@ class GPTFeedForward(nn.Module):
 
         self.l1 = nn.Linear(n_embd, n_embd * 4, bias=False)
         self.gelu = nn.GELU()
-        self.l2 = nn.Linear(n_embd * 4, n_embd, bias=False)
+        self.l_proj = nn.Linear(n_embd * 4, n_embd, bias=False)
         self.drop = nn.Dropout(dropout)
 
     def forward(self, x):
         x = self.l1(x)
         x = self.gelu(x)
-        x = self.l2(x)
+        x = self.l_proj(x)
         x = self.drop(x)
 
         return x
@@ -74,6 +76,12 @@ class GPT(nn.Module):
         self.blocks = nn.ModuleList([GPTBlock() for _ in range(n_layer)])
         self.layer_norm = nn.LayerNorm(n_embd, bias=False)
         self.head = nn.Linear(n_embd, n_vocab, bias=False)
+
+        self.apply(self.init_weights)
+        # apply special scaled init to the residual projections, per GPT-2 paper
+        for pn, p in self.named_parameters():
+            if pn.endswith('l_proj.weight'):
+                torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * n_layer))
 
     def forward(self, x: torch.Tensor, y: torch.Tensor):
         b, t = x.size()
@@ -131,3 +139,23 @@ class GPT(nn.Module):
         ]
 
         return optim_groups
+
+    def get_num_params(self, non_embedding=True):
+        """
+        Return the number of parameters in the model.
+        For non-embedding count (default), the position embeddings get subtracted.
+        The token embeddings would too, except due to the parameter sharing these
+        params are actually used as weights in the final layer, so we include them.
+        """
+        n_params = sum(p.numel() for p in self.parameters())
+        if non_embedding:
+            n_params -= self.pos_embd.weight.numel()
+        return n_params
+
+    def init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)

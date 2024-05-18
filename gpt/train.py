@@ -15,9 +15,12 @@ if len(sys.argv) <= 1:
 
 mode = sys.argv[1]
 
+save_file = os.path.join(models_dir, 'gpt_ckpt.pt')
+if len(sys.argv) > 2:
+    save_file = sys.argv[2]
+
 train_file = os.path.join(data_dir, 'train.bin')
 val_file = os.path.join(data_dir, 'val.bin')
-save_file = os.path.join(out_dir, 'gpt_ckpt.pt')
 
 train_ids = np.memmap(train_file, dtype=np.uint16, mode='r')
 val_ids = np.memmap(val_file, dtype=np.uint16, mode='r')
@@ -34,7 +37,8 @@ def get_batch(of='train'):
 gpt = GPT()
 
 if mode == 'new':
-    print('Creating new model')
+    num_params = gpt.get_num_params() / 1e6
+    print(f'Creating new model with {num_params:.2f}M parameters')
 elif mode == 'resume':
     print(f'Resuming model {save_file}')
 
@@ -86,7 +90,7 @@ def estimate_loss():
 
 
 decay_lr = True # whether to decay the learning rate
-warmup_iters = 1000 # how many steps to warm up for
+warmup_iters = 0 # how many steps to warm up for
 lr_decay_iters = 600000 # should be ~= max_iters per Chinchilla
 min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
 # learning rate decay scheduler (cosine with warmup)
@@ -141,6 +145,8 @@ def train():
                     "val/loss": val_loss,
                     "lr": lr
                 })
+            else:
+                print(f'iter: {iter}, train/loss: {train_loss}, val/loss: {val_loss}, lr: {lr}')
 
             if val_loss < best_loss:
                 save_checkpoint()
