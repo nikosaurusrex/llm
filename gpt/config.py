@@ -3,7 +3,7 @@ import os
 import torch
 import torch.amp
 
-n_vocab = 50304 # rounded up from gpt2
+n_vocab = 32000
 n_layer = 12
 n_head = 12
 n_embd = 768
@@ -42,13 +42,15 @@ def pack_config() -> dict:
     'n_head': n_head,
     'n_embd': n_embd,
     'ctx_len': ctx_len,
+    'batch_size': batch_size,
   }
 
 def unpack_config(c):
-  global n_vocab, n_embd, ctx_len, batch_size
+  global n_vocab, n_layer, n_head, n_embd, ctx_len, batch_size
 
   n_vocab = c['n_vocab']
   n_layer = c['n_layer']
   n_head = c['n_head']
   n_embd = c['n_embd']
   ctx_len = c['ctx_len']
+  batch_size = c['batch_size']

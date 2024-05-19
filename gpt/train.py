@@ -5,6 +5,7 @@ import math
 import numpy as np
 import torch
 import wandb
+import sentencepiece as spm
 
 from config import *
 from model import GPT
@@ -34,9 +35,14 @@ def get_batch(of='train'):
 
   return x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
 
-gpt = GPT()
+tokenizer_file = os.path.join(models_dir, 'tokenizer.model')
+sp = spm.SentencePieceProcessor(model_file=tokenizer_file)
+n_vocab = sp.vocab_size()
+
+print(n_vocab)
 
 if mode == 'new':
+  gpt = GPT()
   num_params = gpt.get_num_params() / 1e6
   print(f'Creating new model with {num_params:.2f}M parameters')
 elif mode == 'resume':
@@ -44,9 +50,11 @@ elif mode == 'resume':
 
   checkpoint = torch.load(save_file, map_location=device)
 
-  gpt.load_state_dict(checkpoint['model'])
-
   unpack_config(checkpoint['config'])
+  print(f'layers: {n_layer}')
+
+  gpt = GPT()
+  gpt.load_state_dict(checkpoint['model'])
 else:
   print('Unknown mode parameter. Try new or continue')
   sys.exit(1)
