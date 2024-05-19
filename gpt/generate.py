@@ -8,8 +8,8 @@ from config import *
 from model import GPT
 
 if len(sys.argv) <= 1:
-    print('usage: generate.py <model-file>')
-    sys.exit(1)
+  print('usage: generate.py <model-file>')
+  sys.exit(1)
 
 model_file = sys.argv[1]
 
@@ -23,7 +23,7 @@ gpt.eval()
 gpt.to(device)
 
 if compile:
-    gpt = torch.compile(gpt)
+  gpt = torch.compile(gpt)
 
 enc = tiktoken.get_encoding("gpt2")
 
@@ -36,9 +36,9 @@ temperature = 1.0
 top_k = 200 # retain only the top_k most likely tokens, other to 0 probability
 
 async def generate():
-    with torch.no_grad():
-        with torch_ctx:
-            async for token in gpt.generate(x, max_tokens, temperature, top_k):
-                print(enc.decode(token[0].tolist()), end="")
+  with torch.no_grad():
+    with torch_ctx:
+      async for token in gpt.generate(x, max_tokens, temperature, top_k):
+        print(enc.decode(token[0].tolist()), end="")
 
 asyncio.run(generate())

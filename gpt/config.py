@@ -36,19 +36,19 @@ models_dir = os.path.join(base_dir, '../models')
 os.makedirs(models_dir, exist_ok=True)
 
 def pack_config() -> dict:
-    return {
-        'n_vocab': n_vocab,
-        'n_layer': n_layer,
-        'n_head': n_head,
-        'n_embd': n_embd,
-        'ctx_len': ctx_len,
-    }
+  return {
+    'n_vocab': n_vocab,
+    'n_layer': n_layer,
+    'n_head': n_head,
+    'n_embd': n_embd,
+    'ctx_len': ctx_len,
+  }
 
 def unpack_config(c):
-    global n_vocab, n_embd, ctx_len, batch_size
+  global n_vocab, n_embd, ctx_len, batch_size
 
-    n_vocab = c['n_vocab']
-    n_layer = c['n_layer']
-    n_head = c['n_head']
-    n_embd = c['n_embd']
-    ctx_len = c['ctx_len']
+  n_vocab = c['n_vocab']
+  n_layer = c['n_layer']
+  n_head = c['n_head']
+  n_embd = c['n_embd']
+  ctx_len = c['ctx_len']

@@ -10,152 +10,153 @@ from config import *
 
 # Self-Attention block
 class GPTAttention(nn.Module):
-    def __init__(self):
-        super().__init__()
+  def __init__(self):
+    super().__init__()
 
-        self.l_attn = nn.Linear(n_embd, n_embd * 3, bias=False) # * 3 because for query, key and value
-        self.l_proj = nn.Linear(n_embd, n_embd, bias=False)
-        self.drop = nn.Dropout(dropout)
+    self.l_attn = nn.Linear(n_embd, n_embd * 3, bias=False) # * 3 because for query, key and value
+    self.l_proj = nn.Linear(n_embd, n_embd, bias=False)
+    self.drop = nn.Dropout(dropout)
 
-    def forward(self, x):
-        b, t, c = x.size()
+  def forward(self, x):
+    b, t, c = x.size()
 
-        q, k, v = self.l_attn(x).split(n_embd, dim=2)
+    q, k, v = self.l_attn(x).split(n_embd, dim=2)
 
-        drpt = dropout if self.training else 0
-        x = F.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=drpt, is_causal=True)
+    drpt = dropout if self.training else 0
+    x = F.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=drpt, is_causal=True)
 
-        x = x.transpose(1, 2).contiguous().view(b, t, c) # concat heads
+    x = x.transpose(1, 2).contiguous().view(b, t, c) # concat heads
 
-        x = self.l_proj(x)
-        x = self.drop(x)
+    x = self.l_proj(x)
+    x = self.drop(x)
 
-        return x
+    return x
 
 class GPTFeedForward(nn.Module):
-    def __init__(self):
-        super().__init__()
+  def __init__(self):
+    super().__init__()
 
-        self.l1 = nn.Linear(n_embd, n_embd * 4, bias=False)
-        self.gelu = nn.GELU()
-        self.l_proj = nn.Linear(n_embd * 4, n_embd, bias=False)
-        self.drop = nn.Dropout(dropout)
+    self.l1 = nn.Linear(n_embd, n_embd * 4, bias=False)
+    self.gelu = nn.GELU()
+    self.l_proj = nn.Linear(n_embd * 4, n_embd, bias=False)
+    self.drop = nn.Dropout(dropout)
 
-    def forward(self, x):
-        x = self.l1(x)
-        x = self.gelu(x)
-        x = self.l_proj(x)
-        x = self.drop(x)
+  def forward(self, x):
+    x = self.l1(x)
+    x = self.gelu(x)
+    x = self.l_proj(x)
+    x = self.drop(x)
 
-        return x
+    return x
         
 class GPTBlock(nn.Module):
-    def __init__(self):
-        super().__init__()
+  def __init__(self):
+    super().__init__()
 
-        self.layer_norm1 = nn.LayerNorm(n_embd, bias=False)
-        self.attention = GPTAttention()
-        self.layer_norm2 = nn.LayerNorm(n_embd, bias=False)
-        self.ffd = GPTFeedForward()
+    self.layer_norm1 = nn.LayerNorm(n_embd, bias=False)
+    self.attention = GPTAttention()
+    self.layer_norm2 = nn.LayerNorm(n_embd, bias=False)
+    self.ffd = GPTFeedForward()
 
-    def forward(self, x):
-        x = x + self.attention(self.layer_norm1(x))
-        x = x + self.ffd(self.layer_norm2(x))
+  def forward(self, x):
+    x = x + self.attention(self.layer_norm1(x))
+    x = x + self.ffd(self.layer_norm2(x))
 
-        return x
+    return x
 
 class GPT(nn.Module):
-    def __init__(self):
-        super().__init__()
+  def __init__(self):
+    super().__init__()
 
-        self.tkn_embd = nn.Embedding(n_vocab, n_embd)
-        # learnable embedding
-        self.pos_embd = nn.Embedding(ctx_len, n_embd)
+    self.tkn_embd = nn.Embedding(n_vocab, n_embd)
+    # learnable embedding
+    self.pos_embd = nn.Embedding(ctx_len, n_embd)
 
-        self.drop = nn.Dropout(dropout)
-        self.blocks = nn.ModuleList([GPTBlock() for _ in range(n_layer)])
-        self.layer_norm = nn.LayerNorm(n_embd, bias=False)
-        self.head = nn.Linear(n_embd, n_vocab, bias=False)
+    self.drop = nn.Dropout(dropout)
+    self.blocks = nn.ModuleList([GPTBlock() for _ in range(n_layer)])
+    self.layer_norm = nn.LayerNorm(n_embd, bias=False)
+    self.head = nn.Linear(n_embd, n_vocab, bias=False)
 
-        self.apply(self.init_weights)
-        # apply special scaled init to the residual projections, per GPT-2 paper
-        for pn, p in self.named_parameters():
-            if pn.endswith('l_proj.weight'):
-                torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * n_layer))
+    self.apply(self.init_weights)
+    # apply special scaled init to the residual projections, per GPT-2 paper
+    for pn, p in self.named_parameters():
+      if pn.endswith('l_proj.weight'):
+        torch.nn.init.normal_(p, mean=0.0, std=0.02/math.sqrt(2 * n_layer))
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor):
-        b, t = x.size()
+  def forward(self, x: torch.Tensor, y: torch.Tensor):
+    b, t = x.size()
 
-        pos = torch.arange(0, t, device=device)
+    pos = torch.arange(0, t, device=device)
 
-        tkn_enc = self.tkn_embd(x) # (b, t, n_embd)
-        pos_enc = self.pos_embd(pos) # (t, n_embd)
+    tkn_enc = self.tkn_embd(x) # (b, t, n_embd)
+    pos_enc = self.pos_embd(pos) # (t, n_embd)
 
-        x = tkn_enc + pos_enc # (b, t, n_embd)
-        x = self.drop(x)
+    x = tkn_enc + pos_enc # (b, t, n_embd)
+    x = self.drop(x)
 
-        for block in self.blocks:
-            x = block(x)
-        
-        x = self.layer_norm(x)
+    for block in self.blocks:
+      x = block(x)
+    
+    x = self.layer_norm(x)
 
-        if y is not None:
-            logits = self.head(x)
-            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), y.view(-1))
-        else:
-            logits = self.head(x[:, [-1], :])
-            loss = None
+    if y is not None:
+      logits = self.head(x)
+      loss = F.cross_entropy(logits.view(-1, logits.size(-1)), y.view(-1))
+    else:
+      logits = self.head(x[:, [-1], :])
+      loss = None
 
-        return logits, loss
+    return logits, loss
 
-    async def generate(self, x, max_new_tokens, temperature, top_k):
-        for _ in range(max_new_tokens):
-            idx_cond = x if x.size(1) <= ctx_len else x[:, -ctx_len:]
-            logits, _ = self(idx_cond, None)
+  async def generate(self, x, max_new_tokens, temperature, top_k):
+    for _ in range(max_new_tokens):
+      idx_cond = x if x.size(1) <= ctx_len else x[:, -ctx_len:]
+      logits, _ = self(idx_cond, None)
 
-            logits = logits[:, -1, :] / temperature
-            
-            v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-            logits[logits < v[:, [-1]]] = -float('Inf')
+      logits = logits[:, -1, :] / temperature
+      
+      v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+      logits[logits < v[:, [-1]]] = -float('Inf')
 
-            probs = F.softmax(logits, dim=-1)
-            idx_next = torch.multinomial(probs, num_samples=1)
+      probs = F.softmax(logits, dim=-1)
+      idx_next = torch.multinomial(probs, num_samples=1)
 
-            x = torch.cat((x, idx_next), dim=1)
+      x = torch.cat((x, idx_next), dim=1)
 
-            yield idx_next
+      yield idx_next
 
-    def get_parameters(self):
-        param_dict = {pn: p for pn, p in self.named_parameters()}
-        # filter out those that do not require grad
-        param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
-        # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
-        # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
-        decay_params = [p for n, p in param_dict.items() if p.dim() >= 2]
-        nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2]
-        optim_groups = [
-            {'params': decay_params, 'weight_decay': weight_decay},
-            {'params': nodecay_params, 'weight_decay': 0.0}
-        ]
+  def get_parameters(self):
+    param_dict = {pn: p for pn, p in self.named_parameters()}
+    # filter out those that do not require grad
+    param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
+    # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
+    # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
+    decay_params = [p for n, p in param_dict.items() if p.dim() >= 2]
+    nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2]
+    optim_groups = [
+      {'params': decay_params, 'weight_decay': weight_decay},
+      {'params': nodecay_params, 'weight_decay': 0.0}
+    ]
 
-        return optim_groups
+    return optim_groups
 
-    def get_num_params(self, non_embedding=True):
-        """
-        Return the number of parameters in the model.
-        For non-embedding count (default), the position embeddings get subtracted.
-        The token embeddings would too, except due to the parameter sharing these
-        params are actually used as weights in the final layer, so we include them.
-        """
-        n_params = sum(p.numel() for p in self.parameters())
-        if non_embedding:
-            n_params -= self.pos_embd.weight.numel()
-        return n_params
+  def get_num_params(self, non_embedding=True):
+    """
+    Return the number of parameters in the model.
+    For non-embedding count (default), the position embeddings get subtracted.
+    The token embeddings would too, except due to the parameter sharing these
+    params are actually used as weights in the final layer, so we include them.
+    """
+    n_params = sum(p.numel() for p in self.parameters())
+    if non_embedding:
+      n_params -= self.pos_embd.weight.numel()
+    return n_params
 
-    def init_weights(self, module):
-        if isinstance(module, nn.Linear):
-            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
-            if module.bias is not None:
-                torch.nn.init.zeros_(module.bias)
-        elif isinstance(module, nn.Embedding):
-            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+  def init_weights(self, module):
+    if isinstance(module, nn.Linear):
+      torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+      if module.bias is not None:
+        torch.nn.init.zeros_(module.bias)
+    elif isinstance(module, nn.Embedding):
+      torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
