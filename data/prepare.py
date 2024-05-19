@@ -2,22 +2,21 @@ import os
 import sys
 import numpy as np
 from datasets import load_dataset
-import sentencepiece as spm
+import tiktoken
 
 args = sys.argv
 
-if len(args) < 3:
-  print("Usage: python prepare.py <dataset> <vocab-size>")
+if len(args) < 2:
+  print("Usage: python prepare.py <dataset>")
   exit(1)
 
 dataset_name = args[1]
-vocab_size = int(args[2])
 
 base_dir = os.path.dirname(__file__)
 models_dir = os.path.join(base_dir, '../models')
 train_file = os.path.join(base_dir, 'train.bin')
 val_file = os.path.join(base_dir, 'val.bin')
-data_file = os.path.join(base_dir, 'data.txt')
+data_file = os.path.join(base_dir, f'{dataset_name}_data.txt')
 
 data = None
 if not os.path.exists(data_file):
@@ -37,13 +36,13 @@ if not os.path.exists(data_file):
 
       lang = data['language']
       if lang == 'C':
-        scripts.append(data['code'])
+        scripts.append(data['code'].encode('utf-8'))
 
       total_count += 1
 
     data = ''
     for script in scripts:
-      data += script
+      data += str(script) + '\n'
   else:
     print('unknown dataset')
     exit(1)
@@ -55,17 +54,14 @@ else:
     data = f.read()
     
 if data is not None:
-  spm.SentencePieceTrainer.train(input=data_file, model_prefix=f'{models_dir}/tokenizer', vocab_size=vocab_size)
-
-  tokenizer_file = os.path.join(models_dir, 'tokenizer.model')
-  sp = spm.SentencePieceProcessor(model_file=tokenizer_file)
+  enc = tiktoken.get_encoding('cl100k_base')
 
   train_split = int(0.9 * len(data))
   train = data[:train_split]
   val = data[train_split:]
 
-  train = sp.encode(train)
-  val = sp.encode(val)
+  train = enc.encode(train)
+  val = enc.encode(val)
 
   train = np.array(train, dtype=np.uint16)
   val = np.array(val, dtype=np.uint16)

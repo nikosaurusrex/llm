@@ -3,7 +3,7 @@ import os
 import torch
 import torch.amp
 
-n_vocab = 32000
+n_vocab = 100277
 n_layer = 12
 n_head = 12
 n_embd = 768
@@ -18,8 +18,8 @@ beta1 = 0.9
 beta2 = 0.95
 
 training_iter = 10000
-eval_interval = 250 # how many steps until I run the eval again
-eval_iters = 20 # how many losses are calculated when evaluating
+eval_interval = 100 # how many steps until I run the eval again
+eval_iters = 10 # how many losses are calculated when evaluating
 log_interval = 10 # how many steps between each log message
 
 device = 'cuda'

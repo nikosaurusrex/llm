@@ -2,11 +2,10 @@ import sys
 import asyncio
 
 import torch
+import tiktoken
 
 from config import *
 from model import GPT
-
-import sentencepiece as spm
 
 if len(sys.argv) <= 1:
   print('usage: generate.py <model-file>')
@@ -23,15 +22,13 @@ unpack_config(checkpoint['config'])
 gpt.eval()
 gpt.to(device)
 
+enc = tiktoken.get_encoding('cl100k_base')
+
 if compile:
   gpt = torch.compile(gpt)
 
-tokenizer_file = os.path.join(models_dir, 'tokenizer.model')
-sp = spm.SentencePieceProcessor(model_file=tokenizer_file)
-n_vocab = sp.vocab_size()
-
 start = input("Prompt: ")
-ids = sp.encode(start)
+ids = enc.encode(start)
 x = torch.tensor(ids, device=device, dtype=torch.long)[None, ...]
 
 max_tokens = 1000
@@ -42,6 +39,6 @@ async def generate():
   with torch.no_grad():
     with torch_ctx:
       async for token in gpt.generate(x, max_tokens, temperature, top_k):
-        print(sp.decode(token[0].tolist()), end="")
+        print(enc.decode(token[0].tolist()), end="")
 
 asyncio.run(generate())

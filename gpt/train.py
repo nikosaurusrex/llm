@@ -5,7 +5,6 @@ import math
 import numpy as np
 import torch
 import wandb
-import sentencepiece as spm
 
 from config import *
 from model import GPT
@@ -34,12 +33,6 @@ def get_batch(of='train'):
   y = torch.stack([torch.from_numpy((data[i+1:i+1+ctx_len]).astype(np.int64)) for i in ri])
 
   return x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
-
-tokenizer_file = os.path.join(models_dir, 'tokenizer.model')
-sp = spm.SentencePieceProcessor(model_file=tokenizer_file)
-n_vocab = sp.vocab_size()
-
-print(n_vocab)
 
 if mode == 'new':
   gpt = GPT()
